@@ -6,10 +6,10 @@
 - Domínio de e-mail verificado no Resend (se envio de e-mail estiver ativo).
 
 ## 2) Variáveis de ambiente na Vercel
-Configure em `Production` e `Preview`:
+Configure em `Production` e `Preview` e marque-as para estarem disponíveis no **build** (na edição da variável, inclua o ambiente correto).
 
 - `DATABASE_URL` (pooler do Supabase, porta 6543)
-- `DIRECT_URL` (conexão direta do Supabase, porta 5432)
+- `DIRECT_URL` (no Supabase: use o **Session pooler** na porta 5432 se `db.xxx.supabase.co:5432` não conectar por IPv4)
 - `AUTH_SECRET` (string aleatória longa)
 - `NEXTAUTH_URL` (URL final da aplicação)
 - `APP_BASE_URL` (URL final da aplicação)
