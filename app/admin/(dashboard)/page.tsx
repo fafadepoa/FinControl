@@ -10,6 +10,7 @@ export default async function AdminDashboardPage() {
   return (
     <div className="mx-auto max-w-6xl space-y-8">
       <div>
+        <p className="fc-soft-heading">Painel administrativo</p>
         <h1 className="fc-page-title">Dashboard</h1>
         <p className="fc-page-sub">Visão geral das despesas das suas empresas</p>
       </div>
@@ -22,14 +23,14 @@ export default async function AdminDashboardPage() {
         <StatCard label="Total (qtd)" value={stats.total} accent="total" />
       </div>
 
-      <div className="fc-glass p-4">
+      <div className="fc-section-card p-4">
         <p className="text-sm text-[var(--fc-text-muted)]">
           Valor total registrado:{" "}
           <span className="fc-amount text-base">{formatBRL(stats.totalAmount)}</span>
         </p>
       </div>
 
-      <div className="fc-placeholder-banner">
+      <div className="fc-section-card p-4 text-[var(--fc-text-muted)]">
         <strong className="text-fc-heading">Cartão corporativo:</strong> em breve. Integração planejada
         para fases futuras.
       </div>
@@ -42,7 +43,7 @@ export default async function AdminDashboardPage() {
           </Link>
         </div>
         {recent.length === 0 ? (
-          <p className="text-[var(--fc-text-muted)]">Nenhuma despesa ainda.</p>
+          <div className="fc-section-card p-4 text-[var(--fc-text-muted)]">Nenhuma despesa ainda.</div>
         ) : (
           <div className="fc-glass fc-table-shell overflow-hidden p-0">
             <table className="min-w-[720px]">

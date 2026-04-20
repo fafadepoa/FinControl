@@ -12,9 +12,15 @@ export function ExpensesTopNav({ isAdmin }: { isAdmin: boolean }) {
       <nav className="flex flex-wrap gap-1 text-sm font-medium">
         <Link
           href="/expenses"
-          className={`fc-nav-link ${pathname === "/expenses" && !pathname.includes("new") ? "fc-nav-link-active" : ""}`}
+          className={`fc-nav-link ${pathname === "/expenses" ? "fc-nav-link-active" : ""}`}
         >
           Minhas despesas
+        </Link>
+        <Link
+          href="/expenses/history"
+          className={`fc-nav-link ${pathname === "/expenses/history" ? "fc-nav-link-active" : ""}`}
+        >
+          Histórico
         </Link>
         <Link
           href="/expenses/new"

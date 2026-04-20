@@ -12,6 +12,7 @@ export type WizardCompany = {
 };
 
 const STEPS = ["Valor", "Empresa", "Categoria", "Descrição", "Comprovante", "Revisão"] as const;
+const MAX_RECEIPTS = 5;
 
 export function ExpenseWizard({
   companies,
@@ -29,8 +30,8 @@ export function ExpenseWizard({
   const [companyId, setCompanyId] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [description, setDescription] = useState("");
-  const [receipt, setReceipt] = useState<File | null>(null);
-  const [receiptPreviewUrl, setReceiptPreviewUrl] = useState<string | null>(null);
+  const [receipts, setReceipts] = useState<File[]>([]);
+  const [receiptPreviewUrls, setReceiptPreviewUrls] = useState<Array<{ name: string; url: string }>>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -45,18 +46,19 @@ export function ExpenseWizard({
 
   const amountNum = parseMoneyBR(amountStr) ?? 0;
   const limitNum = category?.limitAmount != null ? Number(category.limitAmount) : null;
-  const hasImageReceipt = receipt?.type.startsWith("image/") ?? false;
+  const hasReceipts = receipts.length > 0;
 
   useEffect(() => {
-    if (!receipt || !receipt.type.startsWith("image/")) {
-      setReceiptPreviewUrl(null);
+    if (receipts.length === 0) {
+      setReceiptPreviewUrls([]);
       return;
     }
-
-    const objectUrl = URL.createObjectURL(receipt);
-    setReceiptPreviewUrl(objectUrl);
-    return () => URL.revokeObjectURL(objectUrl);
-  }, [receipt]);
+    const previews = receipts
+      .filter((file) => file.type.startsWith("image/"))
+      .map((file) => ({ name: file.name, url: URL.createObjectURL(file) }));
+    setReceiptPreviewUrls(previews);
+    return () => previews.forEach((preview) => URL.revokeObjectURL(preview.url));
+  }, [receipts]);
 
   function next() {
     setError(null);
@@ -89,6 +91,35 @@ export function ExpenseWizard({
     setStep((s) => Math.max(s - 1, 0));
   }
 
+  function onSelectReceipts(event: React.ChangeEvent<HTMLInputElement>) {
+    const selectedFiles = Array.from(event.target.files ?? []);
+    if (selectedFiles.length === 0) return;
+    const current = receipts;
+    const merged = [...current];
+    for (const file of selectedFiles) {
+      const exists = merged.some(
+        (existing) =>
+          existing.name === file.name &&
+          existing.size === file.size &&
+          existing.lastModified === file.lastModified
+      );
+      if (!exists) merged.push(file);
+    }
+    if (merged.length > MAX_RECEIPTS) {
+      setError(`Você pode anexar no máximo ${MAX_RECEIPTS} comprovantes.`);
+      setReceipts(merged.slice(0, MAX_RECEIPTS));
+    } else {
+      setError(null);
+      setReceipts(merged);
+    }
+    // Permite selecionar o mesmo arquivo novamente em seguida, se necessário.
+    event.currentTarget.value = "";
+  }
+
+  function removeReceipt(index: number) {
+    setReceipts((prev) => prev.filter((_, i) => i !== index));
+  }
+
   async function submit() {
     setError(null);
     setLoading(true);
@@ -98,7 +129,7 @@ export function ExpenseWizard({
         companyId,
         categoryId,
         description: description.trim() || null,
-        receipt,
+        receipts,
       });
       router.push("/expenses?created=1");
       router.refresh();
@@ -209,14 +240,52 @@ export function ExpenseWizard({
 
       {step === 4 && (
         <div className="space-y-2">
-          <label className="fc-label">Comprovante (opcional)</label>
+          <label className="fc-label">Comprovantes (opcional)</label>
           <input
             type="file"
             accept="image/*,application/pdf"
+            multiple
             className="fc-file-input"
-            onChange={(e) => setReceipt(e.target.files?.[0] ?? null)}
+            onChange={onSelectReceipts}
           />
-          <p className="text-xs text-[var(--fc-text-subtle)]">PDF ou imagem, máx. 5 MB.</p>
+          <p className="text-xs text-[var(--fc-text-subtle)]">
+            Até 5 arquivos (PDF ou imagem), máximo de 5 MB por arquivo.
+          </p>
+          {hasReceipts && (
+            <div className="mt-3 space-y-2 rounded-lg border border-[var(--fc-glass-border)] bg-[rgba(255,255,255,0.55)] p-3">
+              <p className="text-xs font-semibold text-[var(--fc-text-muted)]">
+                {receipts.length} arquivo(s) selecionado(s)
+              </p>
+              {receiptPreviewUrls.length > 0 && (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {receiptPreviewUrls.map((preview) => (
+                    <div key={preview.name} className="space-y-1">
+                      <img
+                        src={preview.url}
+                        alt={`Preview do comprovante ${preview.name}`}
+                        className="max-h-36 w-auto max-w-full rounded-lg border border-[var(--fc-glass-border)] object-contain"
+                      />
+                      <p className="truncate text-xs text-[var(--fc-text-muted)]">{preview.name}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <ul className="space-y-1 text-xs text-[var(--fc-text-muted)]">
+                {receipts.map((file, index) => (
+                  <li key={`${file.name}-${file.lastModified}`} className="flex items-center justify-between gap-2">
+                    <span className="truncate">{file.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeReceipt(index)}
+                      className="fc-btn-ghost text-xs"
+                    >
+                      Remover
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
 
@@ -243,21 +312,34 @@ export function ExpenseWizard({
               </div>
             )}
             <div className="space-y-2">
-              <dt className="text-[var(--fc-text-muted)]">Comprovante</dt>
+              <dt className="text-[var(--fc-text-muted)]">Comprovantes</dt>
               <dd className="text-fc-heading">
-                {!receipt && "—"}
-                {receipt && hasImageReceipt && receiptPreviewUrl && (
+                {!hasReceipts && "—"}
+                {hasReceipts && (
                   <div className="space-y-2">
-                    <img
-                      src={receiptPreviewUrl}
-                      alt={`Preview do comprovante ${receipt.name}`}
-                      className="max-h-56 w-auto max-w-full rounded-lg border border-[var(--fc-glass-border)] object-contain"
-                    />
-                    <p className="text-xs text-[var(--fc-text-muted)]">{receipt.name}</p>
+                    <p className="text-xs text-[var(--fc-text-muted)]">
+                      {receipts.length} arquivo(s) selecionado(s)
+                    </p>
+                    {receiptPreviewUrls.length > 0 && (
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {receiptPreviewUrls.map((preview) => (
+                          <div key={preview.name} className="space-y-1">
+                            <img
+                              src={preview.url}
+                              alt={`Preview do comprovante ${preview.name}`}
+                              className="max-h-40 w-auto max-w-full rounded-lg border border-[var(--fc-glass-border)] object-contain"
+                            />
+                            <p className="text-xs text-[var(--fc-text-muted)]">{preview.name}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <ul className="space-y-1 text-xs text-[var(--fc-text-muted)]">
+                      {receipts.map((file) => (
+                        <li key={`${file.name}-${file.lastModified}`}>{file.name}</li>
+                      ))}
+                    </ul>
                   </div>
-                )}
-                {receipt && (!hasImageReceipt || !receiptPreviewUrl) && (
-                  <p>{receipt.name}</p>
                 )}
               </dd>
             </div>

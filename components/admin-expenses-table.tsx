@@ -19,7 +19,7 @@ type AdminExpenseRow = {
   amount: string;
   status: ExpenseStatus;
   description: string | null;
-  attachmentUrl: string | null;
+  attachmentUrls: string[];
 };
 
 function statusLabel(s: ExpenseStatus) {
@@ -60,11 +60,12 @@ export function AdminExpensesTable({ rows }: { rows: AdminExpenseRow[] }) {
 
   const selected = useMemo(() => rows.find((r) => r.id === selectedId) ?? null, [rows, selectedId]);
 
-  const attachmentType = useMemo(() => {
-    if (!selected?.attachmentUrl) return "none";
-    if (isImageUrl(selected.attachmentUrl)) return "image";
-    if (isPdfUrl(selected.attachmentUrl)) return "pdf";
-    return "other";
+  const classifiedAttachments = useMemo(() => {
+    if (!selected) return [];
+    return selected.attachmentUrls.map((url) => ({
+      url,
+      type: isImageUrl(url) ? "image" : isPdfUrl(url) ? "pdf" : "other",
+    }));
   }, [selected]);
 
   const creditPayInfo = useMemo(() => {
@@ -173,29 +174,37 @@ export function AdminExpensesTable({ rows }: { rows: AdminExpenseRow[] }) {
               </dl>
 
               <div className="space-y-2 text-sm">
-                <p className="text-[var(--fc-text-muted)]">Comprovante</p>
-                {!selected.attachmentUrl && <p>-</p>}
-                {selected.attachmentUrl && attachmentType === "image" && (
-                  <a href={selected.attachmentUrl} target="_blank" rel="noreferrer" className="inline-block">
-                    <img
-                      src={selected.attachmentUrl}
-                      alt="Comprovante da despesa"
-                      className="max-h-72 w-auto max-w-full rounded-lg border border-[var(--fc-glass-border)] object-contain"
-                    />
-                  </a>
-                )}
-                {selected.attachmentUrl && attachmentType === "pdf" && (
-                  <a href={selected.attachmentUrl} target="_blank" rel="noreferrer" className="fc-link inline-flex items-center gap-2">
-                    <span className="rounded border border-[var(--fc-glass-border-bright)] px-1.5 py-0.5 text-xs font-semibold">
-                      PDF
-                    </span>
-                    Abrir comprovante PDF
-                  </a>
-                )}
-                {selected.attachmentUrl && attachmentType === "other" && (
-                  <a href={selected.attachmentUrl} target="_blank" rel="noreferrer" className="fc-link">
-                    Abrir comprovante
-                  </a>
+                <p className="text-[var(--fc-text-muted)]">Comprovantes</p>
+                {classifiedAttachments.length === 0 && <p>-</p>}
+                {classifiedAttachments.length > 0 && (
+                  <div className="space-y-3">
+                    {classifiedAttachments.map((attachment, index) => (
+                      <div key={`${attachment.url}-${index}`}>
+                        {attachment.type === "image" && (
+                          <a href={attachment.url} target="_blank" rel="noreferrer" className="inline-block">
+                            <img
+                              src={attachment.url}
+                              alt={`Comprovante ${index + 1}`}
+                              className="max-h-72 w-auto max-w-full rounded-lg border border-[var(--fc-glass-border)] object-contain"
+                            />
+                          </a>
+                        )}
+                        {attachment.type === "pdf" && (
+                          <a href={attachment.url} target="_blank" rel="noreferrer" className="fc-link inline-flex items-center gap-2">
+                            <span className="rounded border border-[var(--fc-glass-border-bright)] px-1.5 py-0.5 text-xs font-semibold">
+                              PDF
+                            </span>
+                            Abrir comprovante PDF {index + 1}
+                          </a>
+                        )}
+                        {attachment.type === "other" && (
+                          <a href={attachment.url} target="_blank" rel="noreferrer" className="fc-link">
+                            Abrir comprovante {index + 1}
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
 

@@ -23,7 +23,7 @@ function statusLabel(s: ExpenseStatus) {
 export default async function AdminExpensesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; companyId?: string; userId?: string }>;
+  searchParams: Promise<{ status?: string; companyId?: string; userId?: string; categoryId?: string }>;
 }) {
   const sp = await searchParams;
   const status =
@@ -32,12 +32,16 @@ export default async function AdminExpensesPage({
       : undefined;
   const companyId = sp.companyId || undefined;
   const userId = sp.userId || undefined;
+  const categoryId = sp.categoryId || undefined;
 
   const [rows, companies, users] = await Promise.all([
-    listAdminExpenses({ status, companyId, userId }),
+    listAdminExpenses({ status, companyId, userId, categoryId }),
     listCompanies(),
     listUsers(),
   ]);
+  const categories = Array.from(
+    new Map(rows.map((expense) => [expense.category.id, expense.category.name])).entries()
+  ).map(([id, name]) => ({ id, name }));
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -86,6 +90,21 @@ export default async function AdminExpensesPage({
             ))}
           </select>
         </div>
+        <div>
+          <label className="fc-label text-xs">Categoria</label>
+          <select
+            name="categoryId"
+            defaultValue={categoryId ?? ""}
+            className="fc-input mt-1 w-auto min-w-[12rem]"
+          >
+            <option value="">Todas</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </select>
+        </div>
         <button type="submit" className="fc-btn-secondary">
           Filtrar
         </button>
@@ -108,7 +127,12 @@ export default async function AdminExpensesPage({
           amount: String(e.amount),
           status: e.status,
           description: e.description,
-          attachmentUrl: e.attachmentUrl,
+          attachmentUrls:
+            e.attachments.length > 0
+              ? e.attachments.map((attachment) => attachment.url)
+              : e.attachmentUrl
+                ? [e.attachmentUrl]
+                : [],
         }))}
       />
     </div>

@@ -31,9 +31,11 @@ export async function registerUserWithVerification(input: {
   if (existing) throw new Error("Ja existe uma conta com este e-mail.");
 
   const passwordHash = await hash(input.password, 10);
+  const requireEmailVerification = process.env.AUTH_REQUIRE_EMAIL_VERIFICATION === "true";
   const tokenRaw = randomBytes(32).toString("hex");
   const tokenHash = hashToken(tokenRaw);
   const expiresAt = new Date(Date.now() + TOKEN_HOURS * 60 * 60 * 1000);
+  const verifiedAt = requireEmailVerification ? null : new Date();
 
   await prisma.$transaction(async (tx) => {
     const user = await tx.user.create({
@@ -42,27 +44,41 @@ export async function registerUserWithVerification(input: {
         passwordHash,
         role: input.role,
         active: true,
-        emailVerifiedAt: null,
+        emailVerifiedAt: verifiedAt,
         creditBalance: { create: { balance: 0 } },
       },
       select: { id: true },
     });
 
-    await tx.company.create({
+    const company = await tx.company.create({
       data: {
         name: companyName,
         createdById: user.id,
       },
+      select: { id: true },
     });
 
-    await tx.emailVerificationToken.create({
+    await tx.userCompany.create({
       data: {
         userId: user.id,
-        tokenHash,
-        expiresAt,
+        companyId: company.id,
       },
     });
+
+    if (requireEmailVerification) {
+      await tx.emailVerificationToken.create({
+        data: {
+          userId: user.id,
+          tokenHash,
+          expiresAt,
+        },
+      });
+    }
   });
+
+  if (!requireEmailVerification) {
+    return { verifyUrl: null };
+  }
 
   const verifyUrl = new URL("/verify-email", getBaseUrl());
   verifyUrl.searchParams.set("token", tokenRaw);

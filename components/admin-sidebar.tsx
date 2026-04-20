@@ -85,7 +85,8 @@ const mainLinks: NavItem[] = [
 ];
 
 const costCenterSubmenuLinks: NavItem[] = [
-  { href: "/admin/companies", label: "Empresas", match: (p) => p.startsWith("/admin/companies"), icon: <IconBuilding /> },
+  { href: "/admin/companies", label: "Cadastro da empresa", match: (p) => p.startsWith("/admin/companies"), icon: <IconBuilding /> },
+  { href: "/admin/cost-centers", label: "Centros de custo", match: (p) => p.startsWith("/admin/cost-centers"), icon: <IconLink /> },
   { href: "/admin/categories", label: "Categorias", match: (p) => p.startsWith("/admin/categories"), icon: <IconTag /> },
   { href: "/admin/users", label: "Colaboradores", match: (p) => p.startsWith("/admin/users"), icon: <IconUsers /> },
 ];
@@ -127,7 +128,7 @@ export function AdminSidebar() {
         <div className="fc-cost-center-group mt-1">
           <button
             type="button"
-            title="Centro de custo"
+            title="Empresas e centros de custo"
             aria-expanded={isCostCenterOpen}
             aria-controls="cost-center-submenu"
             className={`fc-cost-center-parent fc-admin-nav-row fc-nav-link flex w-full items-center gap-3 ${
@@ -137,7 +138,7 @@ export function AdminSidebar() {
             <span className="flex h-9 w-9 shrink-0 items-center justify-center">
               <IconLink />
             </span>
-            <span className="fc-sidebar-expand min-w-0 flex-1 truncate text-left font-medium">Centro de custo</span>
+            <span className="fc-sidebar-expand min-w-0 flex-1 truncate text-left font-medium">Empresas</span>
             <span className="fc-sidebar-expand text-xs">{isCostCenterOpen ? "▾" : "▸"}</span>
           </button>
           <div

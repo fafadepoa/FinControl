@@ -110,10 +110,22 @@ model Expense {
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  attachments ExpenseAttachment[]
 
   @@index([userId])
   @@index([companyId, status])
   @@index([status])
+}
+
+model ExpenseAttachment {
+  id        String   @id @default(cuid())
+  expenseId String
+  url       String
+  createdAt DateTime @default(now())
+
+  expense Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+
+  @@index([expenseId, createdAt])
 }
 
 model CreditBalance {

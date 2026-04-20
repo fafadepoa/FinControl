@@ -22,10 +22,15 @@ export async function GET(
   }
 
   const urlSuffix = `/api/receipts/${name}`;
-  const expense = await prisma.expense.findFirst({
-    where: { attachmentUrl: { endsWith: urlSuffix } },
-    select: { userId: true, companyId: true },
-  });
+  const expense =
+    (await prisma.expense.findFirst({
+      where: { attachmentUrl: { endsWith: urlSuffix } },
+      select: { userId: true, companyId: true },
+    })) ??
+    (await prisma.expense.findFirst({
+      where: { attachments: { some: { url: { endsWith: urlSuffix } } } },
+      select: { userId: true, companyId: true },
+    }));
 
   if (!expense) {
     return new NextResponse("Não encontrado", { status: 404 });

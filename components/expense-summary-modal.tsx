@@ -10,7 +10,7 @@ type ExpenseSummaryModalProps = {
   amountLabel: string;
   statusLabel: string;
   description: string | null;
-  attachmentUrl: string | null;
+  attachmentUrls: string[];
 };
 
 function isImageUrl(url: string) {
@@ -28,7 +28,7 @@ export function ExpenseSummaryModal({
   amountLabel,
   statusLabel,
   description,
-  attachmentUrl,
+  attachmentUrls,
 }: ExpenseSummaryModalProps) {
   const [open, setOpen] = useState(false);
   const canUseDOM = typeof window !== "undefined";
@@ -43,12 +43,14 @@ export function ExpenseSummaryModal({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [open]);
 
-  const attachmentType = useMemo(() => {
-    if (!attachmentUrl) return "none";
-    if (isImageUrl(attachmentUrl)) return "image";
-    if (isPdfUrl(attachmentUrl)) return "pdf";
-    return "other";
-  }, [attachmentUrl]);
+  const classifiedAttachments = useMemo(
+    () =>
+      attachmentUrls.map((url) => ({
+        url,
+        type: isImageUrl(url) ? "image" : isPdfUrl(url) ? "pdf" : "other",
+      })),
+    [attachmentUrls]
+  );
 
   return (
     <>
@@ -108,32 +110,37 @@ export function ExpenseSummaryModal({
             </dl>
 
             <div className="space-y-2 text-sm">
-              <p className="text-[var(--fc-text-muted)]">Comprovante</p>
-              {!attachmentUrl && <p>—</p>}
-
-              {attachmentUrl && attachmentType === "image" && (
-                <a href={attachmentUrl} target="_blank" rel="noreferrer" className="inline-block">
-                  <img
-                    src={attachmentUrl}
-                    alt="Comprovante da despesa"
-                    className="max-h-72 w-auto max-w-full rounded-lg border border-[var(--fc-glass-border)] object-contain"
-                  />
-                </a>
-              )}
-
-              {attachmentUrl && attachmentType === "pdf" && (
-                <a href={attachmentUrl} target="_blank" rel="noreferrer" className="fc-link inline-flex items-center gap-2">
-                  <span className="rounded border border-[var(--fc-glass-border-bright)] px-1.5 py-0.5 text-xs font-semibold">
-                    PDF
-                  </span>
-                  Abrir comprovante PDF
-                </a>
-              )}
-
-              {attachmentUrl && attachmentType === "other" && (
-                <a href={attachmentUrl} target="_blank" rel="noreferrer" className="fc-link">
-                  Abrir comprovante
-                </a>
+              <p className="text-[var(--fc-text-muted)]">Comprovantes</p>
+              {classifiedAttachments.length === 0 && <p>—</p>}
+              {classifiedAttachments.length > 0 && (
+                <div className="space-y-3">
+                  {classifiedAttachments.map((attachment, index) => (
+                    <div key={`${attachment.url}-${index}`}>
+                      {attachment.type === "image" && (
+                        <a href={attachment.url} target="_blank" rel="noreferrer" className="inline-block">
+                          <img
+                            src={attachment.url}
+                            alt={`Comprovante ${index + 1}`}
+                            className="max-h-72 w-auto max-w-full rounded-lg border border-[var(--fc-glass-border)] object-contain"
+                          />
+                        </a>
+                      )}
+                      {attachment.type === "pdf" && (
+                        <a href={attachment.url} target="_blank" rel="noreferrer" className="fc-link inline-flex items-center gap-2">
+                          <span className="rounded border border-[var(--fc-glass-border-bright)] px-1.5 py-0.5 text-xs font-semibold">
+                            PDF
+                          </span>
+                          Abrir comprovante PDF {index + 1}
+                        </a>
+                      )}
+                      {attachment.type === "other" && (
+                        <a href={attachment.url} target="_blank" rel="noreferrer" className="fc-link">
+                          Abrir comprovante {index + 1}
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           </div>

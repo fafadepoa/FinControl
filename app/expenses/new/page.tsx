@@ -41,9 +41,12 @@ export default async function NewExpensePage() {
 
   return (
     <div className="space-y-8">
-      <h1 className="fc-page-title">Nova despesa</h1>
+      <div>
+        <p className="fc-soft-heading">Espaço do colaborador</p>
+        <h1 className="fc-page-title">Nova despesa</h1>
+      </div>
       {companies.length === 0 ? (
-        <div className="fc-alert-error border border-amber-500/40 bg-amber-950/30 text-amber-100">
+        <div className="fc-alert-error">
           Você não está vinculado a nenhuma empresa. Solicite ao administrador o vínculo a um centro de
           custo.
         </div>

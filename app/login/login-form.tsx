@@ -19,25 +19,6 @@ export function LoginForm() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    // #region agent log
-    fetch("http://127.0.0.1:7631/ingest/ac0e6707-932b-43bc-924d-84dab4ff09fe", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "d38fc4" },
-      body: JSON.stringify({
-        sessionId: "d38fc4",
-        runId: "initial",
-        hypothesisId: "H1-H4",
-        location: "app/login/login-form.tsx:onSubmit:start",
-        message: "collaborator login submit",
-        data: {
-          emailPrefix: email.trim().toLowerCase().slice(0, 2),
-          callbackUrl,
-          route: "/login",
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
     const res = await signIn("credentials", {
       email: email.trim().toLowerCase(),
       password,
@@ -45,26 +26,6 @@ export function LoginForm() {
       redirect: false,
       callbackUrl,
     });
-    // #region agent log
-    fetch("http://127.0.0.1:7631/ingest/ac0e6707-932b-43bc-924d-84dab4ff09fe", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "d38fc4" },
-      body: JSON.stringify({
-        sessionId: "d38fc4",
-        runId: "initial",
-        hypothesisId: "H1-H5",
-        location: "app/login/login-form.tsx:onSubmit:result",
-        message: "collaborator login result",
-        data: {
-          route: "/login",
-          hasError: Boolean(res?.error),
-          hasUrl: Boolean(res?.url),
-          errorCode: res?.error ?? null,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
     setLoading(false);
     if (res?.error) {
       setError("E-mail ou senha inválidos.");

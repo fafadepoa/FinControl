@@ -16,6 +16,7 @@ import { parseMoneyBR } from "@/lib/money";
 
 const RECEIPT_DIR = path.join(process.cwd(), "uploads", "receipts");
 const MAX_BYTES = 5 * 1024 * 1024;
+const MAX_RECEIPTS = 5;
 const ALLOWED = new Set([
   "image/jpeg",
   "image/png",
@@ -24,27 +25,35 @@ const ALLOWED = new Set([
   "application/pdf",
 ]);
 
-async function saveReceipt(file: File | null | undefined): Promise<string | null> {
-  if (!file || file.size === 0) return null;
-  if (file.size > MAX_BYTES) throw new Error("Arquivo muito grande (máx. 5 MB).");
-  const type = file.type || "application/octet-stream";
-  if (!ALLOWED.has(type)) throw new Error("Use PDF ou imagem (JPEG, PNG, WebP ou GIF).");
+async function saveReceiptFiles(files: File[] | null | undefined): Promise<string[]> {
+  if (!files || files.length === 0) return [];
+  if (files.length > MAX_RECEIPTS) throw new Error(`Envie no máximo ${MAX_RECEIPTS} comprovantes.`);
+
   await mkdir(RECEIPT_DIR, { recursive: true });
-  const ext =
-    type === "application/pdf"
-      ? "pdf"
-      : type === "image/png"
-        ? "png"
-        : type === "image/webp"
-          ? "webp"
-          : type === "image/gif"
-            ? "gif"
-            : "jpg";
-  const name = `${randomUUID()}.${ext}`;
-  const buf = Buffer.from(await file.arrayBuffer());
-  const full = path.join(RECEIPT_DIR, name);
-  await writeFile(full, buf);
-  return `/api/receipts/${name}`;
+
+  const urls: string[] = [];
+  for (const file of files) {
+    if (!file || file.size === 0) continue;
+    if (file.size > MAX_BYTES) throw new Error("Cada arquivo deve ter no máximo 5 MB.");
+    const type = file.type || "application/octet-stream";
+    if (!ALLOWED.has(type)) throw new Error("Use PDF ou imagem (JPEG, PNG, WebP ou GIF).");
+    const ext =
+      type === "application/pdf"
+        ? "pdf"
+        : type === "image/png"
+          ? "png"
+          : type === "image/webp"
+            ? "webp"
+            : type === "image/gif"
+              ? "gif"
+              : "jpg";
+    const name = `${randomUUID()}.${ext}`;
+    const buf = Buffer.from(await file.arrayBuffer());
+    const full = path.join(RECEIPT_DIR, name);
+    await writeFile(full, buf);
+    urls.push(`/api/receipts/${name}`);
+  }
+  return urls;
 }
 
 export async function createExpense(input: {
@@ -52,9 +61,9 @@ export async function createExpense(input: {
   companyId: string;
   categoryId: string;
   description?: string | null;
-  receipt?: File | null;
+  receipts?: File[] | null;
 }) {
-  const { session, user } = await requireAuth();
+  const { user } = await requireAuth();
   const linked = await getLinkedCompanyIds(user.id);
   if (!linked.includes(input.companyId)) {
     throw new Error("Empresa inválida para este usuário.");
@@ -72,7 +81,8 @@ export async function createExpense(input: {
   });
   if (!category) throw new Error("Categoria inválida.");
 
-  const attachmentUrl = await saveReceipt(input.receipt ?? null);
+  const attachmentUrls = await saveReceiptFiles(input.receipts ?? null);
+  const primaryAttachmentUrl = attachmentUrls[0] ?? null;
 
   await prisma.expense.create({
     data: {
@@ -82,7 +92,12 @@ export async function createExpense(input: {
       amount,
       description: input.description?.trim() || null,
       status: ExpenseStatus.PENDING,
-      attachmentUrl,
+      attachmentUrl: primaryAttachmentUrl,
+      attachments: attachmentUrls.length
+        ? {
+            create: attachmentUrls.map((url) => ({ url })),
+          }
+        : undefined,
     },
   });
 
@@ -95,7 +110,7 @@ export async function listMyExpenses() {
   const { user } = await requireAuth();
   return prisma.expense.findMany({
     where: { userId: user.id },
-    include: { company: true, category: true },
+    include: { company: true, category: true, attachments: { orderBy: { createdAt: "asc" } } },
     orderBy: { createdAt: "desc" },
   });
 }
@@ -104,6 +119,7 @@ export async function listAdminExpenses(filters?: {
   status?: ExpenseStatus;
   companyId?: string;
   userId?: string;
+  categoryId?: string;
 }) {
   const { user } = await requireAdmin();
   const companyIds = await getManagedCompanyIds(user.id);
@@ -117,10 +133,12 @@ export async function listAdminExpenses(filters?: {
         ? { companyId: filters.companyId }
         : {}),
       ...(filters?.userId ? { userId: filters.userId } : {}),
+      ...(filters?.categoryId ? { categoryId: filters.categoryId } : {}),
     },
     include: {
       company: true,
       category: true,
+      attachments: { orderBy: { createdAt: "asc" } },
       user: {
         select: {
           id: true,
