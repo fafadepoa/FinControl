@@ -8,6 +8,9 @@ const prisma = new PrismaClient();
 
 async function main() {
   await prisma.$transaction(async (tx) => {
+    await tx.authAuditEvent.deleteMany();
+    await tx.loginThrottle.deleteMany();
+    await tx.expenseAttachment.deleteMany();
     await tx.expense.deleteMany();
     await tx.category.deleteMany();
     await tx.creditTransaction.deleteMany();

@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "env:init": "node scripts/env-init.cjs",
+    "check:email": "tsx scripts/check-email-env.ts",
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
@@ -21,12 +22,16 @@
     "@prisma/client": "^6.19.3",
     "@react-email/components": "^1.0.12",
     "bcryptjs": "^3.0.3",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.9.0",
     "next": "16.2.3",
     "next-auth": "^5.0.0-beta.30",
     "prisma": "^6.19.3",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "recharts": "^3.8.1",
     "resend": "^6.12.0",
+    "sonner": "^2.0.7",
     "zod": "^4.3.6"
   },
   "devDependencies": {

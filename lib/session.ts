@@ -1,17 +1,22 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 
-export async function requireAuth() {
+/**
+ * Uma vez por pedido HTTP (layout + página + server actions na mesma árvore),
+ * deduplica `auth()` + `findUnique` — antes vários `requireAuth()` repetiam ~1–3 s cada.
+ */
+export const requireAuth = cache(async () => {
   const session = await auth();
-  if (!session?.user?.id) redirect("/login");
+  if (!session?.user?.id) redirect("/?reauth=1");
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { id: true, active: true, role: true, email: true },
+    select: { id: true, active: true, role: true, email: true, displayName: true },
   });
-  if (!user?.active) redirect("/login");
+  if (!user?.active) redirect("/?reauth=1");
   return { session, user };
-}
+});
 
 export async function requireAdmin() {
   const { session, user } = await requireAuth();

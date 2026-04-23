@@ -1,0 +1,48 @@
+:root {
+  --fc-primary: #2f7ef7;
+  --fc-primary-strong: #1f62d8;
+  --fc-primary-ring: rgba(47, 126, 247, 0.2);
+  --fc-secondary: #6c7a96;
+  --fc-success: #16a34a;
+  --fc-success-strong: #166534;
+  --fc-success-soft: rgba(22, 163, 74, 0.14);
+  --fc-warning: #f59e0b;
+  --fc-warning-strong: #92400e;
+  --fc-warning-soft: rgba(245, 158, 11, 0.15);
+  --fc-danger: #ef4444;
+  --fc-danger-strong: #991b1b;
+  --fc-danger-soft: rgba(239, 68, 68, 0.14);
+  --fc-neutral-50: #f7f9fc;
+  --fc-neutral-100: #f1f5fb;
+  --fc-neutral-200: #dce4f0;
+  --fc-neutral-400: #7e8ca7;
+  --fc-neutral-900: #10213e;
+  --fc-heading: #10213e;
+  --fc-text: #233554;
+  --fc-text-muted: #4f6184;
+  --fc-text-subtle: #7e8ca7;
+  --fc-surface-1: rgba(255, 255, 255, 0.95);
+  --fc-surface-2: rgba(255, 255, 255, 0.88);
+  --fc-surface-3: rgba(237, 243, 255, 0.92);
+  --fc-border: rgba(156, 175, 204, 0.42);
+  --fc-radius-sm: 8px;
+  --fc-radius-md: 12px;
+  --fc-radius-lg: 16px;
+  --fc-radius-xl: 24px;
+  --fc-shadow-sm: 0 8px 20px rgba(17, 24, 39, 0.08);
+  --fc-shadow-md: 0 16px 32px rgba(17, 24, 39, 0.12);
+  --fc-shadow-lg: 0 24px 54px rgba(17, 24, 39, 0.18);
+}
+
+.dark {
+  --fc-heading: #e6edff;
+  --fc-text: #d4def6;
+  --fc-text-muted: #9eaccf;
+  --fc-text-subtle: #8392b8;
+  --fc-surface-1: rgba(12, 22, 43, 0.92);
+  --fc-surface-2: rgba(14, 26, 49, 0.84);
+  --fc-surface-3: rgba(19, 33, 62, 0.88);
+  --fc-border: rgba(112, 137, 184, 0.36);
+  --fc-primary-ring: rgba(96, 165, 250, 0.25);
+  color-scheme: dark;
+}

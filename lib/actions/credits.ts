@@ -35,6 +35,29 @@ export async function listCreditOverview() {
   });
 }
 
+export async function getCreditTotals() {
+  const { user: admin } = await requireAdmin();
+  const companyIds = await getManagedCompanyIds(admin.id);
+  if (companyIds.length === 0) return { totalAdded: 0 };
+
+  const scopedUsers = await prisma.user.findMany({
+    where: { userCompanies: { some: { companyId: { in: companyIds } } } },
+    select: { id: true },
+  });
+  const userIds = scopedUsers.map((u) => u.id);
+  if (userIds.length === 0) return { totalAdded: 0 };
+
+  const sum = await prisma.creditTransaction.aggregate({
+    where: {
+      userId: { in: userIds },
+      type: CreditTransactionType.CREDIT,
+    },
+    _sum: { amount: true },
+  });
+
+  return { totalAdded: Number(sum._sum.amount ?? 0) };
+}
+
 export async function listCreditTransactions(filters?: { userId?: string }) {
   const { user: admin } = await requireAdmin();
   const companyIds = await getManagedCompanyIds(admin.id);
@@ -54,15 +77,61 @@ export async function listCreditTransactions(filters?: { userId?: string }) {
     ? { userId: filters.userId }
     : { userId: { in: [...allowed] } };
 
-  return prisma.creditTransaction.findMany({
+  const rows = await prisma.creditTransaction.findMany({
     where: userFilter,
-    include: {
+    select: {
+      id: true,
+      userId: true,
+      type: true,
+      amount: true,
+      balanceAfter: true,
+      createdAt: true,
       user: { select: { email: true } },
       createdBy: { select: { email: true } },
+      note: true,
     },
     orderBy: { createdAt: "desc" },
     take: 200,
   });
+
+  const missingUserIds = [...new Set(rows.filter((r) => r.balanceAfter == null).map((r) => r.userId))];
+  if (missingUserIds.length === 0) return rows;
+
+  const history = await prisma.creditTransaction.findMany({
+    where: { userId: { in: missingUserIds } },
+    select: {
+      id: true,
+      userId: true,
+      type: true,
+      amount: true,
+      balanceAfter: true,
+      createdAt: true,
+    },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+  });
+
+  const derivedById = new Map<string, Prisma.Decimal>();
+  const runningByUser = new Map<string, Prisma.Decimal>();
+
+  for (const tx of history) {
+    const current = runningByUser.get(tx.userId) ?? new Prisma.Decimal(0);
+    const persisted = tx.balanceAfter ? new Prisma.Decimal(tx.balanceAfter.toString()) : null;
+    const next =
+      persisted ??
+      (tx.type === CreditTransactionType.CREDIT
+        ? current.plus(tx.amount)
+        : tx.type === CreditTransactionType.DEBIT
+          ? current.minus(tx.amount)
+          : new Prisma.Decimal(tx.amount.toString()));
+
+    runningByUser.set(tx.userId, next);
+    derivedById.set(tx.id, next);
+  }
+
+  return rows.map((row) => ({
+    ...row,
+    balanceAfter: row.balanceAfter ?? derivedById.get(row.id) ?? null,
+  }));
 }
 
 export async function postCreditAdjustment(input: {
@@ -84,7 +153,11 @@ export async function postCreditAdjustment(input: {
   });
   if (!linked) throw new Error("Colaborador fora do seu escopo administrativo.");
 
-  const raw = input.amountStr.replace(/\s/g, "").replace("R$", "").replace(",", ".");
+  const raw = input.amountStr
+    .replace(/\s/g, "")
+    .replace("R$", "")
+    .replace(/\./g, "")
+    .replace(",", ".");
   const amountNum = Number(raw);
   if (!Number.isFinite(amountNum) || amountNum <= 0) throw new Error("Valor inválido.");
   const amount = new Prisma.Decimal(amountNum);
@@ -122,6 +195,7 @@ export async function postCreditAdjustment(input: {
         userId: input.userId,
         amount,
         type: input.type,
+        balanceAfter: next,
         note: input.note?.trim() || null,
         createdById: user.id,
       },

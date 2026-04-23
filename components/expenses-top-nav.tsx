@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LogoutButton } from "@/components/logout-button";
+import { UIThemeToggle } from "@/components/ui/theme-toggle";
 
 export function ExpensesTopNav({ isAdmin }: { isAdmin: boolean }) {
   const pathname = usePathname() ?? "";
@@ -37,7 +38,10 @@ export function ExpensesTopNav({ isAdmin }: { isAdmin: boolean }) {
           </Link>
         )}
       </nav>
-      <LogoutButton />
+      <div className="flex items-center gap-2">
+        <UIThemeToggle />
+        <LogoutButton />
+      </div>
     </header>
   );
 }

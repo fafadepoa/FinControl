@@ -19,7 +19,11 @@ export async function POST(req: Request) {
       role: parsed.role,
       companyName: parsed.companyName,
     });
-    return NextResponse.json({ ok: true, verifyUrl: result.verifyUrl });
+    return NextResponse.json({
+      ok: true,
+      verifyUrl: result.verifyUrl,
+      verificationRequired: result.verificationRequired,
+    });
   } catch (error) {
     const message =
       error instanceof z.ZodError

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
-import { CreditTransactionType, ExpenseStatus, Prisma } from "@prisma/client";
+import { CategoryKind, CreditTransactionType, ExpenseStatus, FuelEntryMode, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
   getLinkedCompanyIds,
@@ -60,12 +60,16 @@ export async function createExpense(input: {
   amountStr: string;
   companyId: string;
   categoryId: string;
+  /** Ignorado: o modo é definido na categoria (paymentRule). */
+  fuelEntryMode?: FuelEntryMode | null;
   description?: string | null;
   receipts?: File[] | null;
 }) {
   const { user } = await requireAuth();
   const linked = await getLinkedCompanyIds(user.id);
-  if (!linked.includes(input.companyId)) {
+  const managed = user.role === "ADMIN" ? await getManagedCompanyIds(user.id) : [];
+  const allowed = new Set([...linked, ...managed]);
+  if (!allowed.has(input.companyId)) {
     throw new Error("Empresa inválida para este usuário.");
   }
 
@@ -78,8 +82,20 @@ export async function createExpense(input: {
       companyId: input.companyId,
       active: true,
     },
+    include: {
+      _count: { select: { categoryUsers: true } },
+      categoryUsers: { where: { userId: user.id }, select: { userId: true } },
+    },
   });
   if (!category) throw new Error("Categoria inválida.");
+  const categoryHasUsers = category._count.categoryUsers > 0;
+  const userLinkedToCategory = category.categoryUsers.length > 0;
+  if (categoryHasUsers && !userLinkedToCategory && user.role !== "ADMIN") {
+    throw new Error("Você não possui acesso a esta categoria.");
+  }
+
+  const isFuelCategory = category.kind === CategoryKind.FUEL;
+  const fuelEntryMode = isFuelCategory ? category.paymentRule : null;
 
   const attachmentUrls = await saveReceiptFiles(input.receipts ?? null);
   const primaryAttachmentUrl = attachmentUrls[0] ?? null;
@@ -90,6 +106,7 @@ export async function createExpense(input: {
       companyId: input.companyId,
       categoryId: category.id,
       amount,
+      fuelEntryMode,
       description: input.description?.trim() || null,
       status: ExpenseStatus.PENDING,
       attachmentUrl: primaryAttachmentUrl,
@@ -286,6 +303,7 @@ export async function payExpenseWithCredit(formData: FormData) {
         userId: exp.userId,
         amount,
         type: CreditTransactionType.DEBIT,
+        balanceAfter: next,
         note: `Pagamento por crédito da despesa ${exp.id}`,
         createdById: user.id,
       },

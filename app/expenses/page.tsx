@@ -35,7 +35,7 @@ export default async function MyExpensesPage({
   const creditVisible = me?.creditBalanceVisibleToSelf !== false;
   const creditAmount =
     me?.creditBalance?.balance != null ? Number(me.creditBalance.balance) : 0;
-  const displayName = user.email.split("@")[0] || user.email;
+  const displayName = user.displayName?.trim() || user.email.split("@")[0] || user.email;
 
   return (
     <div className="space-y-6">

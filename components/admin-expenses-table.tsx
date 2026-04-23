@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { ExpenseStatus } from "@prisma/client";
+import { ExpenseStatus, FuelEntryMode } from "@prisma/client";
 import { payExpenseWithCredit, setExpenseStatusForm } from "@/lib/actions/expenses";
 import { formatBRL } from "@/lib/money";
 
@@ -16,6 +16,7 @@ type AdminExpenseRow = {
   userCreditBalance: string | null;
   companyName: string;
   categoryName: string;
+  fuelEntryMode: FuelEntryMode | null;
   amount: string;
   status: ExpenseStatus;
   description: string | null;
@@ -35,6 +36,13 @@ function statusLabel(s: ExpenseStatus) {
     default:
       return s;
   }
+}
+
+function fuelEntryModeLabel(mode: FuelEntryMode | null) {
+  if (!mode) return null;
+  if (mode === "DAILY") return "Por diária";
+  if (mode === "KM") return "Por km";
+  return "Livre";
 }
 
 function isImageUrl(url: string) {
@@ -111,7 +119,14 @@ export function AdminExpensesTable({ rows }: { rows: AdminExpenseRow[] }) {
                 <td className="whitespace-nowrap text-[var(--fc-text-muted)]">{e.createdAt}</td>
                 <td>{e.userEmail}</td>
                 <td>{e.companyName}</td>
-                <td>{e.categoryName}</td>
+                <td>
+                  {e.categoryName}
+                  {e.fuelEntryMode ? (
+                    <span className="ml-2 rounded border border-[var(--fc-glass-border)] px-2 py-0.5 text-[11px] text-[var(--fc-text-muted)]">
+                      {fuelEntryModeLabel(e.fuelEntryMode)}
+                    </span>
+                  ) : null}
+                </td>
                 <td className="fc-amount">{formatBRL(Number(e.amount))}</td>
                 <td>{statusLabel(e.status)}</td>
               </tr>
@@ -159,6 +174,12 @@ export function AdminExpensesTable({ rows }: { rows: AdminExpenseRow[] }) {
                   <dt className="text-[var(--fc-text-muted)]">Categoria</dt>
                   <dd>{selected.categoryName}</dd>
                 </div>
+                {selected.fuelEntryMode ? (
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-[var(--fc-text-muted)]">Tipo combustível</dt>
+                    <dd>{fuelEntryModeLabel(selected.fuelEntryMode)}</dd>
+                  </div>
+                ) : null}
                 <div className="flex justify-between gap-4">
                   <dt className="text-[var(--fc-text-muted)]">Valor</dt>
                   <dd className="fc-amount">{formatBRL(Number(selected.amount))}</dd>

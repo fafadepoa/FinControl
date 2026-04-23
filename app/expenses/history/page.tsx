@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ExpenseStatus } from "@prisma/client";
+import { ExpenseStatus, FuelEntryMode } from "@prisma/client";
 import { listMyExpenses } from "@/lib/actions/expenses";
 import { formatBRL } from "@/lib/money";
 import { ExpenseSummaryModal } from "@/components/expense-summary-modal";
@@ -25,6 +25,13 @@ const monthNames = [
   "Novembro",
   "Dezembro",
 ];
+
+function fuelEntryModeLabel(mode: FuelEntryMode | null) {
+  if (!mode) return null;
+  if (mode === "DAILY") return "Por diária";
+  if (mode === "KM") return "Por km";
+  return "Livre";
+}
 
 export default async function ExpensesHistoryPage({
   searchParams,
@@ -257,6 +264,9 @@ export default async function ExpensesHistoryPage({
                       <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--fc-text-muted)]">
                         <span>{new Date(expense.createdAt).toLocaleDateString("pt-BR")}</span>
                         <span>{expense.company.name}</span>
+                        {expense.fuelEntryMode ? (
+                          <span>Combustível: {fuelEntryModeLabel(expense.fuelEntryMode)}</span>
+                        ) : null}
                         <span>{statusLabel[expense.status]}</span>
                       </div>
                     </div>
@@ -265,7 +275,11 @@ export default async function ExpensesHistoryPage({
                       <ExpenseSummaryModal
                         dateLabel={new Date(expense.createdAt).toLocaleString("pt-BR")}
                         companyName={expense.company.name}
-                        categoryName={expense.category.name}
+                        categoryName={
+                          expense.fuelEntryMode
+                            ? `${expense.category.name} (${fuelEntryModeLabel(expense.fuelEntryMode)})`
+                            : expense.category.name
+                        }
                         amountLabel={formatBRL(Number(expense.amount))}
                         statusLabel={statusLabel[expense.status]}
                         description={expense.description}

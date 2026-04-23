@@ -124,6 +124,7 @@ export default async function AdminExpensesPage({
             e.user.creditBalance != null ? String(e.user.creditBalance.balance) : null,
           companyName: e.company.name,
           categoryName: e.category.name,
+          fuelEntryMode: e.fuelEntryMode,
           amount: String(e.amount),
           status: e.status,
           description: e.description,

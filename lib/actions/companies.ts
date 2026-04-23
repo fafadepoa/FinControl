@@ -4,11 +4,25 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/session";
 
-export async function listCompanies() {
+export async function listCompanies(filters?: { name?: string; cnpj?: string }) {
   const { user } = await requireAdmin();
   return prisma.company.findMany({
-    where: { createdById: user.id },
+    where: {
+      createdById: user.id,
+      ...(filters?.name?.trim() ? { name: { contains: filters.name.trim() } } : {}),
+      ...(filters?.cnpj?.trim() ? { cnpj: { contains: filters.cnpj.trim() } } : {}),
+    },
     orderBy: { name: "asc" },
+    include: {
+      _count: { select: { userCompanies: true, categories: true, expenses: true } },
+    },
+  });
+}
+
+export async function getCompanyForEdit(id: string) {
+  const { user } = await requireAdmin();
+  return prisma.company.findFirst({
+    where: { id, createdById: user.id },
     include: {
       _count: { select: { userCompanies: true, categories: true, expenses: true } },
     },
@@ -31,16 +45,26 @@ export async function createCompany(data: {
   const { user } = await requireAdmin();
   const name = data.name.trim();
   if (!name) throw new Error("Nome é obrigatório.");
-  await prisma.company.create({
-    data: {
-      name,
-      cnpj: data.cnpj?.trim() || null,
-      phone: data.phone?.trim() || null,
-      createdById: user.id,
-    },
+  await prisma.$transaction(async (tx) => {
+    const company = await tx.company.create({
+      data: {
+        name,
+        cnpj: data.cnpj?.trim() || null,
+        phone: data.phone?.trim() || null,
+        createdById: user.id,
+      },
+      select: { id: true },
+    });
+    await tx.userCompany.upsert({
+      where: { userId_companyId: { userId: user.id, companyId: company.id } },
+      update: {},
+      create: { userId: user.id, companyId: company.id },
+    });
   });
   revalidatePath("/admin/companies");
+  revalidatePath("/admin/categories");
   revalidatePath("/admin/cost-centers");
+  revalidatePath("/expenses");
   revalidatePath("/expenses/new");
 }
 

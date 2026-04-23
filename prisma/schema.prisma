@@ -28,10 +28,25 @@ enum CreditTransactionType {
   ADJUSTMENT
 }
 
+enum FuelEntryMode {
+  FREE
+  DAILY
+  KM
+}
+
+enum CategoryKind {
+  DEFAULT
+  CUSTOM
+  FUEL
+}
+
 model User {
   id                           String   @id @default(cuid())
   email                        String   @unique
-  passwordHash                 String
+  /** Nome para exibição (colaborador / admin); opcional em contas antigas. */
+  displayName                  String?
+  /** Null enquanto colaborador não conclui convite e define senha. */
+  passwordHash                 String?
   role                         Role     @default(USER)
   active                       Boolean  @default(true)
   emailVerifiedAt              DateTime?
@@ -47,7 +62,9 @@ model User {
   creditTransactions CreditTransaction[] @relation("CreditTxUser")
   creditTxCreatedBy  CreditTransaction[] @relation("CreditTxCreatedBy")
   emailVerificationTokens EmailVerificationToken[]
+  collaboratorInviteTokens CollaboratorInviteToken[]
   passwordResetTokens     PasswordResetToken[]
+  categoryLinks           CategoryUser[]
 }
 
 model Company {
@@ -81,6 +98,13 @@ model Category {
   id          String   @id @default(cuid())
   companyId   String
   name        String
+  kind        CategoryKind @default(CUSTOM)
+  /** Livre / por diária / por km — referência na categoria; valor da despesa continua manual. */
+  paymentRule FuelEntryMode @default(FREE)
+  /** Valor de referência por diária (obrigatório se paymentRule = DAILY em categoria FUEL). */
+  dailyRate   Decimal?
+  /** Valor de referência por km (obrigatório se paymentRule = KM em categoria FUEL). */
+  kmRate      Decimal?
   limitAmount Decimal?
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
@@ -88,9 +112,22 @@ model Category {
 
   company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   expenses Expense[]
+  categoryUsers CategoryUser[]
 
   @@unique([companyId, name])
   @@index([companyId, active])
+}
+
+model CategoryUser {
+  categoryId String
+  userId     String
+  createdAt  DateTime @default(now())
+
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([categoryId, userId])
+  @@index([userId])
 }
 
 model Expense {
@@ -99,6 +136,7 @@ model Expense {
   companyId     String
   categoryId    String
   amount        Decimal
+  fuelEntryMode FuelEntryMode?
   description   String?
   status        ExpenseStatus @default(PENDING)
   attachmentUrl String?
@@ -141,6 +179,7 @@ model CreditTransaction {
   userId      String
   amount      Decimal
   type        CreditTransactionType
+  balanceAfter Decimal?
   note        String?
   createdAt   DateTime               @default(now())
   createdById String?
@@ -179,4 +218,45 @@ model PasswordResetToken {
   @@index([userId, createdAt])
   @@index([expiresAt])
   @@unique([tokenHash])
+}
+
+model CollaboratorInviteToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([expiresAt])
+  @@unique([tokenHash])
+}
+
+model LoginThrottle {
+  id              String   @id @default(cuid())
+  identifier      String   @unique
+  attempts        Int      @default(0)
+  windowStartedAt DateTime @default(now())
+  blockedUntil    DateTime?
+  lastAttemptAt   DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([blockedUntil])
+  @@index([lastAttemptAt])
+}
+
+model AuthAuditEvent {
+  id         String   @id @default(cuid())
+  email      String?
+  ip         String?
+  event      String
+  reason     String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([event, createdAt])
 }

@@ -3,16 +3,30 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createExpense } from "@/lib/actions/expenses";
-import { formatBRL, parseMoneyBR } from "@/lib/money";
+import { formatBRL, maskMoneyInput, parseMoneyBR } from "@/lib/money";
+import type { CategoryKind, FuelEntryMode } from "@prisma/client";
 
 export type WizardCompany = {
   id: string;
   name: string;
-  categories: { id: string; name: string; limitAmount: string | null }[];
+  categories: {
+    id: string;
+    name: string;
+    kind: CategoryKind;
+    paymentRule: FuelEntryMode;
+    limitAmount: string | null;
+    dailyRate: string | null;
+    kmRate: string | null;
+  }[];
 };
 
 const STEPS = ["Valor", "Empresa", "Categoria", "Descrição", "Comprovante", "Revisão"] as const;
 const MAX_RECEIPTS = 5;
+const fuelModeLabels = {
+  FREE: "Livre",
+  DAILY: "Por diária",
+  KM: "Por km",
+} as const;
 
 export function ExpenseWizard({
   companies,
@@ -26,7 +40,7 @@ export function ExpenseWizard({
 }) {
   const router = useRouter();
   const [step, setStep] = useState(0);
-  const [amountStr, setAmountStr] = useState("");
+  const [amountStr, setAmountStr] = useState("R$ 0,00");
   const [companyId, setCompanyId] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [description, setDescription] = useState("");
@@ -43,6 +57,8 @@ export function ExpenseWizard({
     () => company?.categories.find((x) => x.id === categoryId),
     [company, categoryId]
   );
+  const isFuelCategory = category?.kind === "FUEL";
+  const fuelRuleLabel = category?.paymentRule ? fuelModeLabels[category.paymentRule] : "";
 
   const amountNum = parseMoneyBR(amountStr) ?? 0;
   const limitNum = category?.limitAmount != null ? Number(category.limitAmount) : null;
@@ -128,6 +144,7 @@ export function ExpenseWizard({
         amountStr,
         companyId,
         categoryId,
+        fuelEntryMode: isFuelCategory && category ? category.paymentRule : null,
         description: description.trim() || null,
         receipts,
       });
@@ -180,7 +197,7 @@ export function ExpenseWizard({
             className="fc-input py-3 text-lg text-fc-cyan"
             placeholder="R$ 0,00"
             value={amountStr}
-            onChange={(e) => setAmountStr(e.target.value)}
+            onChange={(e) => setAmountStr(maskMoneyInput(e.target.value))}
             autoFocus
           />
         </div>
@@ -213,7 +230,9 @@ export function ExpenseWizard({
           <select
             className="fc-input"
             value={categoryId}
-            onChange={(e) => setCategoryId(e.target.value)}
+            onChange={(e) => {
+              setCategoryId(e.target.value);
+            }}
           >
             <option value="">Selecione…</option>
             {company.categories.map((c) => (
@@ -223,6 +242,27 @@ export function ExpenseWizard({
               </option>
             ))}
           </select>
+          {isFuelCategory && category ? (
+            <div className="space-y-2 rounded-lg border border-[var(--fc-glass-border)] bg-[rgba(15,34,39,0.25)] p-3 text-xs text-[var(--fc-text-muted)]">
+              <p>
+                <span className="font-semibold text-fc-heading">Regra definida pelo administrador:</span>{" "}
+                {fuelRuleLabel}
+              </p>
+              {category.paymentRule === "DAILY" && category.dailyRate != null ? (
+                <p>Referência por diária: {formatBRL(Number(category.dailyRate))}</p>
+              ) : null}
+              {category.paymentRule === "KM" && category.kmRate != null ? (
+                <p>Referência por km: {formatBRL(Number(category.kmRate))}</p>
+              ) : null}
+              {category.paymentRule === "FREE" && category.limitAmount != null ? (
+                <p>Limite sugerido: {formatBRL(Number(category.limitAmount))}</p>
+              ) : null}
+              <p className="text-[var(--fc-text-subtle)]">
+                O valor solicitado na etapa anterior continua sendo informado por você; estes dados são apenas
+                referência.
+              </p>
+            </div>
+          ) : null}
         </div>
       )}
 
@@ -305,6 +345,12 @@ export function ExpenseWizard({
               <dt className="text-[var(--fc-text-muted)]">Categoria</dt>
               <dd className="text-fc-heading">{category?.name}</dd>
             </div>
+            {isFuelCategory && category ? (
+              <div className="flex justify-between gap-4">
+                <dt className="text-[var(--fc-text-muted)]">Regra (referência)</dt>
+                <dd className="text-fc-heading">{fuelRuleLabel}</dd>
+              </div>
+            ) : null}
             {description.trim() && (
               <div className="flex justify-between gap-4">
                 <dt className="text-[var(--fc-text-muted)]">Descrição</dt>

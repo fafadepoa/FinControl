@@ -11,6 +11,13 @@ export async function linkUserForm(formData: FormData) {
   await linkUserToCompany(userId, companyId);
 }
 
+export async function linkUsersBatchForm(formData: FormData) {
+  const companyId = String(formData.get("companyId") ?? "");
+  const userIds = formData.getAll("userIds").map(String).filter(Boolean);
+  if (!companyId || userIds.length === 0) return;
+  await linkUsersToCompanyBatch(userIds, companyId);
+}
+
 export async function unlinkUserForm(formData: FormData) {
   const userId = String(formData.get("userId") ?? "");
   const companyId = String(formData.get("companyId") ?? "");
@@ -51,6 +58,29 @@ export async function linkUserToCompany(userId: string, companyId: string) {
     update: {},
     create: { userId, companyId },
   });
+  revalidatePath("/admin/cost-centers");
+  revalidatePath("/expenses/new");
+}
+
+export async function linkUsersToCompanyBatch(userIds: string[], companyId: string) {
+  const { user } = await requireAdmin();
+  const ok = await prisma.company.findFirst({
+    where: { id: companyId, createdById: user.id },
+    select: { id: true },
+  });
+  if (!ok) throw new Error("Empresa inválida.");
+
+  const targets = await prisma.user.findMany({
+    where: { id: { in: userIds }, role: "USER" },
+    select: { id: true },
+  });
+  if (targets.length === 0) throw new Error("Nenhum colaborador válido selecionado.");
+
+  await prisma.userCompany.createMany({
+    data: targets.map((target) => ({ userId: target.id, companyId })),
+    skipDuplicates: true,
+  });
+
   revalidatePath("/admin/cost-centers");
   revalidatePath("/expenses/new");
 }

@@ -24,7 +24,7 @@ export function PublicAuthShell({
 
   return (
     <div className="fc-public-screen flex flex-1 items-center px-4 py-6 md:px-6 md:py-8">
-      <div className="mx-auto grid min-h-[720px] w-full max-w-6xl overflow-hidden rounded-[2rem] border border-white/12 bg-white/92 shadow-[0_28px_100px_rgba(18,30,68,0.25)] lg:grid-cols-[1.05fr_0.95fr]">
+      <div className="mx-auto grid min-h-[720px] w-full max-w-6xl overflow-hidden rounded-[2rem] border border-white/12 bg-[var(--fc-surface-1)] shadow-[0_28px_100px_rgba(18,30,68,0.25)] lg:grid-cols-[1.05fr_0.95fr]">
         <aside className={accentClass}>
           <div className="relative z-10 flex h-full flex-col justify-between gap-10 p-8 md:p-10">
             <div className="flex items-start justify-between gap-4">
@@ -74,11 +74,11 @@ export function PublicAuthShell({
             </div>
 
             <div className="space-y-3">
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--fc-midnight)]">{badge}</p>
-              <h2 className="text-3xl font-semibold leading-tight tracking-[-0.03em] text-slate-900 md:text-[2.35rem]">
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--fc-primary)]">{badge}</p>
+              <h2 className="text-3xl font-semibold leading-tight tracking-[-0.03em] text-[var(--fc-heading)] md:text-[2.35rem]">
                 {title}
               </h2>
-              <p className="text-[0.96rem] leading-7 text-slate-500">{description}</p>
+              <p className="text-[0.96rem] leading-7 text-[var(--fc-text-muted)]">{description}</p>
             </div>
 
             {children}

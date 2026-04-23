@@ -48,15 +48,24 @@ export function RegisterForm() {
           companyName: companyName.trim(),
         }),
       });
-      const json = (await res.json()) as { ok: boolean; error?: string; verifyUrl?: string | null };
+      const json = (await res.json()) as {
+        ok: boolean;
+        error?: string;
+        verifyUrl?: string | null;
+        verificationRequired?: boolean;
+      };
       if (!res.ok || !json.ok) {
         setError(json.error ?? "Falha ao criar conta.");
       } else {
-        setSuccess(
-          json.verifyUrl
-            ? "Conta criada. Como o envio de e-mail nao esta configurado neste ambiente, use o link abaixo para ativar."
-            : "Conta criada. Verifique seu e-mail para concluir a ativacao.",
-        );
+        if (json.verificationRequired === false) {
+          setSuccess("Conta criada. Voce ja pode fazer login como administrador.");
+        } else if (json.verifyUrl) {
+          setSuccess(
+            "Conta criada. Confirme clicando no link abaixo ou no e-mail (verifique também o spam).",
+          );
+        } else {
+          setSuccess("Conta criada. Verifique seu e-mail para concluir a ativacao.");
+        }
         setVerifyUrl(json.verifyUrl ?? null);
       }
     } catch {
@@ -107,7 +116,7 @@ export function RegisterForm() {
             {success ? <p className="fc-alert-success">{success}</p> : null}
             {verifyUrl ? (
               <p className="text-sm break-all text-slate-600">
-                Ambiente local sem e-mail configurado.{" "}
+                Link direto de verificacao (mesmo token do e-mail):{" "}
                 <a href={verifyUrl} className="fc-link">
                   Abrir link de verificacao
                 </a>

@@ -2,7 +2,7 @@ import { randomBytes, createHash } from "crypto";
 import { hash } from "bcryptjs";
 import { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { isEmailConfigured, sendVerifyAccountEmail } from "@/lib/email/send";
+import { sendVerifyAccountEmail } from "@/lib/email/send";
 
 const TOKEN_HOURS = 24;
 
@@ -12,6 +12,16 @@ function hashToken(token: string) {
 
 function getBaseUrl() {
   return process.env.APP_BASE_URL ?? process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+}
+
+/** Em desenvolvimento local sempre devolver o link na API para testar sem depender só da inbox. */
+function exposeVerifyLinkForLocalDev(): boolean {
+  try {
+    const host = new URL(getBaseUrl()).hostname.toLowerCase();
+    return host === "localhost" || host === "127.0.0.1" || host === "::1";
+  } catch {
+    return process.env.NODE_ENV === "development";
+  }
 }
 
 export async function registerUserWithVerification(input: {
@@ -26,7 +36,6 @@ export async function registerUserWithVerification(input: {
   if (input.password.length < 6) throw new Error("Senha mínima de 6 caracteres.");
   const companyName = input.companyName?.trim() ?? "";
   if (!companyName) throw new Error("Informe o nome da empresa.");
-
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) throw new Error("Ja existe uma conta com este e-mail.");
 
@@ -77,23 +86,30 @@ export async function registerUserWithVerification(input: {
   });
 
   if (!requireEmailVerification) {
-    return { verifyUrl: null };
+    return { verifyUrl: null, verificationRequired: false };
   }
 
   const verifyUrl = new URL("/verify-email", getBaseUrl());
   verifyUrl.searchParams.set("token", tokenRaw);
-  const delivered = await sendVerifyAccountEmail({
-    to: email,
-    verifyUrl: verifyUrl.toString(),
-    role: input.role,
-  });
+  let delivered = false;
+  try {
+    delivered = await sendVerifyAccountEmail({
+      to: email,
+      verifyUrl: verifyUrl.toString(),
+      role: input.role,
+    });
+  } catch (err) {
+    console.warn("[email] falha ao enviar verificacao:", err);
+  }
 
+  const showLink = !delivered || exposeVerifyLinkForLocalDev();
   if (!delivered) {
-    console.info(`[email][dev] link de verificacao para ${email}: ${verifyUrl.toString()}`);
+    console.info(`[email][fallback] link de verificacao para ${email}: ${verifyUrl.toString()}`);
   }
 
   return {
-    verifyUrl: !isEmailConfigured() ? verifyUrl.toString() : null,
+    verifyUrl: showLink ? verifyUrl.toString() : null,
+    verificationRequired: true,
   };
 }
 

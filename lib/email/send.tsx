@@ -1,12 +1,11 @@
 import * as React from "react";
 import { render } from "@react-email/components";
 import { resend } from "@/lib/email/client";
+import { isEmailEnvReady } from "@/lib/email/diagnostics";
 import { CreditAddedEmail } from "@/lib/email/templates/credit-added";
 import { ResetPasswordEmail } from "@/lib/email/templates/reset-password";
 import { VerifyAccountEmail } from "@/lib/email/templates/verify-account";
-
-const RESEND_KEY_PLACEHOLDER = "COLE_SUA_CHAVE_REAL_DO_RESEND_AQUI";
-const MAIL_FROM_PLACEHOLDER = "SEU_DOMINIO_VERIFICADO.com";
+import { CollaboratorInviteEmail } from "@/lib/email/templates/collaborator-invite";
 
 function getMailConfig() {
   const from = process.env.MAIL_FROM;
@@ -16,12 +15,7 @@ function getMailConfig() {
 }
 
 export function isEmailConfigured() {
-  const { from } = getMailConfig();
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!resend || !from || !apiKey) return false;
-  if (apiKey.includes(RESEND_KEY_PLACEHOLDER)) return false;
-  if (from.includes(MAIL_FROM_PLACEHOLDER)) return false;
-  return true;
+  return isEmailEnvReady();
 }
 
 async function sendRawEmail(input: {
@@ -75,6 +69,30 @@ export async function sendPasswordResetEmail(input: { to: string; resetUrl: stri
     subject: `Redefinir senha no ${appName}`,
     react: (
       <ResetPasswordEmail appName={appName} userEmail={input.to} resetUrl={input.resetUrl} logoUrl={logoUrl} />
+    ),
+  });
+}
+
+export async function sendCollaboratorInviteEmail(input: {
+  to: string;
+  inviteUrl: string;
+  displayName: string;
+  companyNames: string[];
+  inviterLabel: string;
+}) {
+  const { appName, logoUrl } = getMailConfig();
+  return sendRawEmail({
+    to: input.to,
+    subject: `Convite para acessar o ${appName}`,
+    react: (
+      <CollaboratorInviteEmail
+        appName={appName}
+        displayName={input.displayName}
+        inviteUrl={input.inviteUrl}
+        companyNames={input.companyNames}
+        inviterLabel={input.inviterLabel}
+        logoUrl={logoUrl}
+      />
     ),
   });
 }
