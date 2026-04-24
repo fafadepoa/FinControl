@@ -5,6 +5,7 @@ import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
 import { CategoryKind, CreditTransactionType, ExpenseStatus, FuelEntryMode, Prisma } from "@prisma/client";
+import { put } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import {
   getLinkedCompanyIds,
@@ -29,7 +30,10 @@ async function saveReceiptFiles(files: File[] | null | undefined): Promise<strin
   if (!files || files.length === 0) return [];
   if (files.length > MAX_RECEIPTS) throw new Error(`Envie no máximo ${MAX_RECEIPTS} comprovantes.`);
 
-  await mkdir(RECEIPT_DIR, { recursive: true });
+  const canUseBlob = Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+  if (!canUseBlob) {
+    await mkdir(RECEIPT_DIR, { recursive: true });
+  }
 
   const urls: string[] = [];
   for (const file of files) {
@@ -48,10 +52,19 @@ async function saveReceiptFiles(files: File[] | null | undefined): Promise<strin
               ? "gif"
               : "jpg";
     const name = `${randomUUID()}.${ext}`;
-    const buf = Buffer.from(await file.arrayBuffer());
-    const full = path.join(RECEIPT_DIR, name);
-    await writeFile(full, buf);
-    urls.push(`/api/receipts/${name}`);
+    if (canUseBlob) {
+      const blob = await put(`receipts/${name}`, file, {
+        access: "public",
+        addRandomSuffix: false,
+        contentType: type,
+      });
+      urls.push(blob.url);
+    } else {
+      const buf = Buffer.from(await file.arrayBuffer());
+      const full = path.join(RECEIPT_DIR, name);
+      await writeFile(full, buf);
+      urls.push(`/api/receipts/${name}`);
+    }
   }
   return urls;
 }
