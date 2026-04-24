@@ -10,11 +10,11 @@ export default async function Home({
   searchParams: Promise<{ reauth?: string; callbackUrl?: string; audience?: string }>;
 }) {
   const sp = await searchParams;
+  const needsRelogin = sp.reauth === "1";
   const session = await auth();
-  if (session?.user) {
+  if (session?.user && !needsRelogin) {
     redirect(session.user.role === "ADMIN" ? "/admin" : "/expenses");
   }
-  const needsRelogin = sp.reauth === "1";
   const callbackUrl = sp.callbackUrl?.trim() ? sp.callbackUrl : null;
   const collaboratorLoginHref = callbackUrl ? `/login?callbackUrl=${encodeURIComponent(callbackUrl)}` : "/login";
   const adminLoginHref = callbackUrl ? `/admin/login?callbackUrl=${encodeURIComponent(callbackUrl)}` : "/admin/login";
